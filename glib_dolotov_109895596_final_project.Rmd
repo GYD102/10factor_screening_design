@@ -1,0 +1,149 @@
+---
+title: "10-Factor Experimental Design on Simulated Data"
+author: "Glib Dolotov (Group 11; SBUID# 109895596)"
+date: "12/4/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include = FALSE, cache = FALSE}
+knitr::read_chunk("glib_dolotov_final_project.R")
+```
+
+```{r, packages, include = FALSE}
+```
+
+```{r, design_object_setup1, include = FALSE}
+```
+
+```{r, design_object_setup2, include = FALSE}
+```
+
+# 1. Introduction
+
+|       For this project, a secret model was created with ten independent variables and one dependent variable. The dependent variable is determined by an unknown function: $Y = f(a,b,...,j) + \epsilon$. The value of each dependent variable, $x_i$, satisfies $-1 \leq x_i \leq 1$. To discern information about the model, we are tasked to create an experiment design with a number of run that each specify a particular setting of each dependent variable. Each run is then assigned a cost. A run where every variable is set to $\pm1$ costs 1 point, a run where each variable $x_i \in \{0,\pm 1\}$ costs 3 points, etc. If additional designs need to be run, points would be deducted. Finally, points would be awarded to correctly identifying the presence (or lack thereof) of each independent variable within the hidden model. This scenario calls for a **factor screening** expriment. Since the main factor settings will be $\pm 1$, our starting point is a **two level factorial** design. With ten possible variables, a full $2^{10}$ design would require 1028 runs. This would cost over 1000 points and cost almost more than the total amount available on offer. Reducing this necessitates a **two-level fractional factorial** design, reducing the number of runs.
+|       While a two-level fractional factorial (I will refer to it as **2FrF** going forward) design may allow us to detect linear or approximately-linear effects of factors and their interaction terms, with simply this design we are vulnerable to omitting significant factors that offer second-order (or even) effects. For example, if the unknown function $f(a,b,...j)$ contains a factor $x^2$ or $cos(x)$, there exists a possibility that it will remain undetected in a 2FrF design. To this end, it would be useful to add **center runs** and **axial runs**. The combination of the two suggests a **central composite design** (**CCD**). Ideally, we would create a **small composite design** (**SCD**) for 10 factors, however I was only able to find a 9-factor SCD. Instead, I worked with a **hybrid design** by adding center and axis runs to a 2FrF design. Because of the points penalty for variable values that are not (-1), 0, or 1, these axial runs will be **face-centered**. This is a very important detail to note. The consequence of face-centered axial runs is that inaccuracy is introduced when modeling the coefficients corresponding to the a factor effect. However, this is a worthwhile trade off. Our priority is to *detect* the factor effects. Note also, however, that certain methodology (such as linear modeling) will be less accurate, create lower $R^2$ values, and have lower p-values requiring extra caution.
+
+**NOTE: FOR THE REMAINDER OF THIS PROJECT, I WILL REFER TO THE INDEPENDENT VARIABLES AS $A, B, C, D, E, F, G, H, J, K$, OMITTING $I$ AS WAS USED IN THE ASSIGNMENT DOCUMENTS AS $I$ IS USUALLY RESERVED FOR THE INTERCEPT EFFECT.**
+
+# 2. Methods
+
+|       The design I decided upon was a hybrid design. A $2^{10-3}_{\mathbf{V}}$ design with the axial runs of a face-centered central composite design. This design was produced in R with the help of the `FrF2` and `DoE` packages. Analysis performed on them was aided by the `RcmdrPlugin.DoE` package. The design's generators are: $H = ABCDE, J = ABCFG, K = ABCDF$. The creation procedure is detailed in **Appendix 6.1** .The full design documentation (including matrix and attributes) is available in **Appendix 6.2**.
+
+# 3. Analysis
+
+|       The central and axial runs are incredibly valuable. In an axial run, all variables except one are set to 0. This means that all main and interaction effects are wiped with the exception of the main effect of the non-zero variable. My first step was to compare the effects of each individual variable on the function output compared with a baseline provided by the center runs. While there is a significant limitation to this (only one run exists for each variable at -1 and 1), if a difference is significant enough, it will mean the variable should be concluded. An additional benefit is that these axial runs bypass the problem of aliasing. However, because they are face-centered, we are likely to get inaccurate estimates for linear parameters.
+
+```{r, centers_plot, echo = FALSE}
+```
+
+|       A visual analysis of the means suggests that $D$, $E$, and $F$ have significant main effects in the model. There is a possibility of outliers because of the limited sample size, but all of the effects are quite extreme. There is also the possibility that their effects are non-linear. $F$ especially has a possibly exponential effect considering the asymmetry in effect on the mean from between it's two settings. Below are the p-values for the F-tests on each variable's fitted model.
+
+```{r, centers_tests}
+```
+
+|       To test for potential transformations, a logarithmic transformation was applied to the responses and another model was fitted. This pushed $D$ and $E$ in a direction to suggests a likelier presence of their main effects, $F$ got pushed closer to the rejection region. All three are likely significant and present within the model. If their effects are transformed, they may not show up when analyzing the full experimental results. However, because this is a factor screening experiment, it is safer to include an effect that can then be further trialed than to remove one that to reject one too early.
+|       Next we analyze the experimental results as a whole. A good first step is to look at a main effects plot, identifying potential effects. From the below plot, we can see that the effects are $G, C, A, K, D, F, E, H, B, J$ (roughly in order from most to least significance).
+
+```{r, rcmdr1, echo = FALSE}
+```
+
+|       There is already enough evidence to keep $D$, $E$, and $F$ within the model, we should further investigate the remaining variables. The least significant variables in the main effects plot will only exist in the model if they have strong interactions with other variables. Since our design is resolution five, the lowest interaction term that can alias with a single interaction is a four-factor interaction. By scarcity of effects, we can conclude that if any variable has a weak main effect and weak two-factor interactions, it is unlikely to be present within the model.
+
+```{r, rcmdr1.2, echo = FALSE}
+```
+
+```{r, rcmdr1.3, echo = FALSE}
+```
+
+```{r, rcmdr2}
+```
+
+```{r, rcmdr3}
+```
+
+|       Both our preliminary visual inspection and our preliminary linear model, which samples all main effects and two-factor interaction terms (including quadratic effects), suggest that $A, B, E, F, H, J, K$ are unlikely to have two-factor interactions. Since $A, B, H, J, K$ have no significant one- or two-factor effects, it is likely they are not present anywhere in the model. By running a stepwise variable selection, we fall onto the model `y ~ D + G + D:G`.
+
+```{r, rcmdr4}
+```
+
+|       Next, let's examine the potential of the $C$ variable. While visually, it's main effect appears larger than that of most other variables, it is still statistically insignificant when quantitatively analyzed. However, it has an interaction term with $D$ that is very close to significance. By fitting a linear model to the formula suggested by our stepwise procedure, `y ~ D + G + D:G`, we can add terms to it and conduct an F-test on the nested values to evaluate if specific terms should or shouldn't be included. This procedure, conducted below, suggests that $C:D$ is a wortwhile addition to the model. However, it does not suggest including $E$ and $F$ despite our previous evidence.
+
+```{r, rcmdr5}
+```
+
+|       The metrics by which we would normally wish to evaluate our model suggest we are on perilous ground. However I will demonstrate later why chasing after our usual metrics can lead us into unsavory territory, especially given our design's priorities and limitations. 
+
+```{r, rcmdr6}
+```
+
+|       Next, I will examine the half-normal plot for potential three-factor interactions. By the resolution of my design, some three-factor interactions are aliased with some two-factor interactions. $FGK$, $ACF$, $AGJ$, $BGH$, and $DG$ appear as significant outliers. $DG$ is already present within our model. $FGK$ includes both $F$ and $G$ which are also already present within our model. $FGK$ aliases down to $FG$ if $K$ isn't present within the model. Similarly logic can be applied to $ACF$. $AGJ$ and $BGH$ are likely aliases of interactions of terms already included in our model. So, let us consider adding $F:C$ and $F:G$ to our model.
+
+```{r, rcmdr7}
+```
+
+|       Doing so and evaluating an F-test on the nested models shows that, although not definitively statistically significant, we may consider including them. However, the term $CDG$ offers no improvement to our model.
+
+```{r, rcmdr8}
+```
+
+```{r, rcmdr9}
+```
+
+|         I would like to demonstrate the significance of the axial runs (despite their extra cost in the model). The below is an ANOVA table on the subset of runs that are exclusive to the two-factor fractional factorial portion of the utilized design. From this ANOVA table, we can find no evidence to suggest keeping $E$ and $F$ within our model despite significant evidence from the axial runs that they should both be factors within the model.
+
+```{r, rcmdr10}
+```
+
+|       Lastly, I would like to demonstrate the dangers of chasing after metrics that are commonly used in **model selection** when running and experiment designed primarily for **factor screening**. Consider the below model `LinearModel.8`. It incorporates nine of the ten dependent variables and up to seven-factor interaction terms. However, it achieves a much higher correlation coefficient and an F-test between it and our working model `LinearModel.5` suggests the former to be superior. However, several issues present. Firstly, with such complex interaction terms, there is a significant risk that the true terms are hidden behind aliases. A seven-factor interaction term, for example, has aliases with lower-factor interaction terms on all levels. Ideally, we could work backwards from this model to sieve through the possible aliases and identify the most likely simplest aliases. However, I was unable to find software tools to help me accomplish this. This is one of the largest limitations of this project.
+
+```{r, rcmdr11}
+```
+
+|       The risks posed by this sort of model selection also presents itself in diagnostic plots. Compare these plots to those of `LinearModel.5`. This model is possibly oversaturated and skewed.
+
+```{r, rcmdr12}
+```
+
+# 4. Results
+
+|       The results of the above analysis demonstrates that the $C, D, E, F, G$ factors are likely present within the model. The remaining factors most likely aren't. The below table summarizes these results.
+
+| Variable | Model |
+|:--------:|:-----:|
+|   A      |  Out  |
+|   B      |  Out  |
+|   C      |  In   |
+|   D      |  In   |
+|   E      |  In   |
+|   F      |  In   |
+|   G      |  In   |
+|   H      |  Out  |
+|   J (I)  |  Out  |
+|   K (J)  |  Out  |
+
+|       ANOVA tables of other considered models were shown in the **Analysis** section. The final model I propose is `Y ~ D + G + E + F + D:G + C:D + C:F + F:G`. 
+
+```{r}
+LinearModel.5
+summary(anova(LinearModel.5))
+plot(LinearModel.5)
+```
+
+# 5. Conclusions and Discussion
+
+|       This experiment had many limitations. Firstly, full modeling (as opposed to identifying presence) of factor effects is difficult. The design was made to be non-rotatable to minimize the cost of the experiment which reduced modeling accuracy. Identifying factor effect nature (linear, polynomial, exponential, etc.) was another limitation. Ideally, we'd like to identify transformations when developing a statistical model. **Dispersion effects** were also not analyzed. I believe they are outside scope of the problem, but dispersion effects are likely to occur and real life and must also be modeled. Improvements that can be made: **fold-over** design, **sequential experimentation**, and With lower costs a $3^k$ design may be considered. A **rotatable** central composite design may be useful, as well as finding / creating a SCD for 10 factors.
+
+\newpage
+# 6. Appendix
+
+## 6.1 Design Creation
+```{r, design_object_setup2, eval = FALSE}
+```
+
+## 6.2 Design
+```{r, appendix1}
+```
