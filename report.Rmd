@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r, include = FALSE, cache = FALSE}
-knitr::read_chunk("glib_dolotov_final_project.R")
+knitr::read_chunk("10factor_screening.R")
 ```
 
 ```{r, packages, include = FALSE}
